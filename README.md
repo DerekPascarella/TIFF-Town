@@ -1,5 +1,5 @@
 # TIFF Town
-<img align="right" src="https://raw.githubusercontent.com/DerekPascarella/TIFF-Town/refs/heads/main/screenshots/screenshot.png" width="265">TIFF Town is a cross-platform image converter that turns modern image formats into TIFF files readable by TownsOS on the FM Towns and FM Towns Marty.
+<img align="right" src="https://github.com/DerekPascarella/TIFF-Town/blob/main/screenshots/screenshot.png?raw=true" width="265">TIFF Town is a cross-platform image converter that turns modern image formats into TIFF files readable by TownsOS on the FM Towns and FM Towns Marty.
 
 Load an image, see exactly what the Towns will display, adjust the settings, and save. That's it!
 
@@ -122,7 +122,7 @@ Clicking **Save As...** on the Advanced tab opens a save dialog prefilled with a
 A confirmation dialog reports the full path and byte count once the file is written.
 
 ## Installing a Wallpaper on the Towns
-<img align="right" src="https://raw.githubusercontent.com/DerekPascarella/TIFF-Town/refs/heads/main/screenshots/menu.png" width="200">Copy `TMENU.TIF` to the root of the bootable TownsOS partition. The file name has to be exactly that, and it has to sit in the root, not in a subdirectory.
+<img align="right" src="https://github.com/DerekPascarella/TIFF-Town/blob/main/screenshots/menu.png?raw=true" width="200">Copy `TMENU.TIF` to the root of the bootable TownsOS partition. The file name has to be exactly that, and it has to sit in the root, not in a subdirectory.
 
 Then enable the background from within TownsMENU by opening the settings menu and checking the background display option, as shown to the right.
 
