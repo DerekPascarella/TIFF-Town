@@ -32,13 +32,13 @@ TIFF Town is currently at version [1.0.0](https://github.com/DerekPascarella/TIF
 
 ## Supported Platforms
 
-| Platform | Architecture | Download | Notes |
-|----------|-------------|----------|-------|
-| Windows | x64 | `.zip` | Self-contained, no runtime needed |
-| Windows | x86 | `.zip` | Self-contained, no runtime needed |
-| macOS | Apple Silicon | `.tar.gz` (`.app` bundle) | Self-contained, no runtime needed |
-| macOS | Intel | `.tar.gz` (`.app` bundle) | Self-contained, no runtime needed |
-| Linux | x64 | `.tar.gz` | Self-contained, no runtime needed |
+| Platform | Architecture | Download |
+|----------|-------------|----------|
+| Windows | x64 | `.zip` |
+| Windows | x86 | `.zip` |
+| macOS | Apple Silicon | `.tar.gz` (`.app` bundle) |
+| macOS | Intel | `.tar.gz` (`.app` bundle) |
+| Linux | x64 | `.tar.gz` |
 
 ## Supported Image Formats
 
