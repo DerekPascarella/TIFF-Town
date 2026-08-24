@@ -1,0 +1,173 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TiffTown.App.MainWindow"
+        Icon="avares://TiffTown/Assets/icon.ico"
+        Title="TIFF Town"
+        Width="960" Height="627"
+        MinWidth="820" MinHeight="627"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.about-link">
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="TextBlock.about-link:pointerover">
+            <Setter Property="Foreground" Value="#33CC66"/>
+            <Setter Property="TextDecorations" Value="Underline"/>
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Padding" Value="10,2"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel LastChildFill="True">
+
+        <Grid ColumnDefinitions="*,300" Margin="12,12,12,0">
+
+            <!-- Preview -->
+            <Grid Grid.Column="0" RowDefinitions="*,Auto">
+                <Border Grid.Row="0" Background="#222222" CornerRadius="4">
+                    <Panel>
+                        <TextBlock x:Name="PreviewHint"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#888888"
+                                   Text="No image loaded"/>
+                        <Image x:Name="PreviewImage" Stretch="Uniform" Margin="8"/>
+                    </Panel>
+                </Border>
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,8,0,13">
+                    <TextBlock x:Name="VersionLine" Grid.Column="0"
+                               Classes="about-link"
+                               HorizontalAlignment="Left" VerticalAlignment="Center"
+                               FontSize="12"
+                               Foreground="#555555"
+                               ToolTip.Tip="About TIFF Town"
+                               PointerPressed="VersionLine_PointerPressed"/>
+                    <Button x:Name="CompareButton" Grid.Column="1"
+                            HorizontalAlignment="Right"
+                            IsEnabled="False"
+                            Content="Show original (hold)"/>
+                </Grid>
+            </Grid>
+
+            <!-- Options -->
+            <TabControl x:Name="MainTabs" Grid.Column="1" Margin="12,0,0,0"
+                        VerticalAlignment="Top" SelectedIndex="0">
+                <TabControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
+                    </ItemsPanelTemplate>
+                </TabControl.ItemsPanel>
+                <TabItem Header="Wallpaper" x:Name="WallpaperTab">
+                    <StackPanel Margin="0,8,8,12">
+                        <Button x:Name="WpLoadButton" HorizontalAlignment="Stretch" Content="Load Image..."/>
+
+                        <TextBlock Classes="section" Text="Size"/>
+                        <RadioButton x:Name="WpSize640" GroupName="wpsize" IsChecked="True"
+                                     Content="640 x 480, 16 colors"/>
+                        <TextBlock Classes="caption" Text="Sharp and standard. Right for most wallpapers."/>
+                        <RadioButton x:Name="WpSize320" GroupName="wpsize" Content="320 x 240, 32,768 colors"/>
+                        <TextBlock Classes="caption"
+                                   Text="Full color, slightly softer. TownsOS doubles it to fill the screen."/>
+
+                        <TextBlock Classes="section" Text="Fit"/>
+                        <RadioButton x:Name="WpFitFill" GroupName="wpfit" IsChecked="True" Content="Fill screen"/>
+                        <TextBlock Classes="caption" Text="Covers the whole screen. Edges that stick out are trimmed."/>
+                        <RadioButton x:Name="WpFitWhole" GroupName="wpfit" Content="Fit whole image"/>
+                        <TextBlock Classes="caption"
+                                   Text="Keeps the whole picture. Leftover space gets the border color."/>
+                        <RadioButton x:Name="WpFitStretch" GroupName="wpfit" Content="Stretch"/>
+                        <TextBlock Classes="caption" Text="Matches the exact shape. May squash or stretch the picture."/>
+
+                        <StackPanel x:Name="WpBorderRow" Orientation="Horizontal" Spacing="6" IsEnabled="False">
+                            <TextBlock VerticalAlignment="Center" Text="Border color"/>
+                            <ColorPicker x:Name="WpBorderPicker" Color="Black"/>
+                        </StackPanel>
+
+                        <TextBlock Classes="section" Text="Result"/>
+                        <TextBlock x:Name="WpInfo" FontSize="12" Text="Source: N/A&#10;Output: N/A"/>
+
+                        <Button x:Name="WpSaveButton" Margin="0,12,0,0"
+                                HorizontalAlignment="Stretch" IsEnabled="False"
+                                Content="Save TMENU.TIF..."/>
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header="Advanced" x:Name="AdvancedTab">
+                    <ScrollViewer AllowAutoHide="False">
+                        <StackPanel Margin="0,8,16,12">
+                            <Button x:Name="LoadButton" HorizontalAlignment="Stretch" Content="Load Image..."/>
+
+                            <TextBlock Classes="section" Text="Color depth"/>
+                            <RadioButton x:Name="DepthAuto" GroupName="depth" IsChecked="True" Content="Auto"/>
+                            <RadioButton x:Name="Depth16" GroupName="depth" Content="16 colors"/>
+                            <RadioButton x:Name="Depth256" GroupName="depth" Content="256 colors"/>
+                            <RadioButton x:Name="Depth32K" GroupName="depth" Content="32,768 colors"/>
+                            <RadioButton x:Name="Depth24" GroupName="depth" Content="24-bit"/>
+                            <TextBlock x:Name="DepthCaption" Classes="caption"
+                                       Text="Auto picks the lowest depth that holds every color."/>
+
+                            <TextBlock Classes="section" Text="Resolution"/>
+                            <RadioButton x:Name="ResOriginal" GroupName="res" IsChecked="True" Content="Original"/>
+                            <RadioButton x:Name="ResCustom" GroupName="res" Content="Custom"/>
+                            <StackPanel x:Name="ResFields" IsEnabled="False">
+                                <StackPanel Orientation="Horizontal" Spacing="0">
+                                    <NumericUpDown x:Name="ResWidth" Minimum="1" Maximum="1024" Value="640"
+                                                   FormatString="0" FontSize="12" Width="116"/>
+                                    <TextBlock VerticalAlignment="Center" FontSize="12" Margin="1,0" Text="x"/>
+                                    <NumericUpDown x:Name="ResHeight" Minimum="1" Maximum="1024" Value="480"
+                                                   FormatString="0" FontSize="12" Width="116"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Spacing="6">
+                                <Button x:Name="Preset640" Content="640x480"/>
+                                <Button x:Name="Preset320" Content="320x240"/>
+                            </StackPanel>
+                            <TextBlock Classes="caption"
+                                       Text="Wallpaper sizes. TownsOS shows 16 colors at 640x480 and 32,768 at 320x240."/>
+
+                            <StackPanel x:Name="ScalePanel" IsEnabled="False">
+                                <TextBlock Classes="section" Text="Scaling"/>
+                                <RadioButton x:Name="ScaleStretch" GroupName="scale" IsChecked="True" Content="Stretch"/>
+                                <RadioButton x:Name="ScaleFit" GroupName="scale" Content="Fit"/>
+                                <RadioButton x:Name="ScaleCrop" GroupName="scale" Content="Crop"/>
+                                <RadioButton x:Name="ScaleCenter" GroupName="scale" Content="Center"/>
+                                <TextBlock x:Name="ScaleCaption" Classes="caption"
+                                           Text="Fills the exact size. Distorts if the shape differs."/>
+                                <StackPanel x:Name="FillRow" Orientation="Horizontal" Spacing="6" IsEnabled="False">
+                                    <TextBlock VerticalAlignment="Center" Text="Fill color"/>
+                                    <ColorPicker x:Name="FillPicker" Color="Black"/>
+                                </StackPanel>
+                                <TextBlock Classes="caption" Text="Painted into the margins by Fit and Center."/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock VerticalAlignment="Center" Text="Resampling"/>
+                                    <ComboBox x:Name="ResampleBox" SelectedIndex="0">
+                                        <ComboBoxItem Content="Smooth"/>
+                                        <ComboBoxItem Content="Sharp"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <TextBlock Classes="caption" Text="Sharp keeps pixel art crisp. Smooth suits photos."/>
+                            </StackPanel>
+
+                            <TextBlock Classes="section" Text="Output"/>
+                            <CheckBox x:Name="DitherBox" IsChecked="True" Content="Dithering"/>
+                            <TextBlock Classes="caption" Text="Smooths banding when colors are reduced."/>
+                            <CheckBox x:Name="LzwBox" Content="LZW compression"/>
+                            <TextBlock Classes="caption"
+                                       Text="Smaller files. TownsOS reads them, but some loaders need uncompressed."/>
+
+                            <TextBlock Classes="section" Text="Result"/>
+                            <TextBlock x:Name="InfoSource" FontSize="12" TextWrapping="Wrap" Text="Source: N/A"/>
+                            <TextBlock x:Name="InfoOutput" FontSize="12" TextWrapping="Wrap" Text="Output: N/A"/>
+
+                            <Button x:Name="SaveButton" Margin="0,12,0,0"
+                                    HorizontalAlignment="Stretch" IsEnabled="False"
+                                    Content="Save As..."/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </DockPanel>
+</Window>

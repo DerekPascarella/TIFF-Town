@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TiffTown.App.Views.AboutWindow"
+        Title="About TIFF Town"
+        SizeToContent="WidthAndHeight"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="24" Spacing="6" Width="380">
+        <TextBlock x:Name="TitleLine" FontSize="18" FontWeight="SemiBold" Text="TIFF Town"/>
+        <TextBlock TextWrapping="Wrap"
+                   Text="Converts modern images into TIFF files readable by TownsOS on the FM Towns."/>
+        <TextBlock Text="Written by Derek Pascarella (ateam)"/>
+        <TextBlock Foreground="#33CC66" TextDecorations="Underline"
+                   Cursor="Hand" PointerPressed="LinkText_PointerPressed"
+                   ToolTip.Tip="Open the project page on GitHub"
+                   Text="https://github.com/DerekPascarella/TIFF-Town"/>
+        <Button HorizontalAlignment="Right" Content="Close" Click="Close_Click"/>
+    </StackPanel>
+</Window>

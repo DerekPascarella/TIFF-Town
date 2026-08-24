@@ -1,0 +1,13 @@
+bin/
+obj/
+_releases/
+_misc_and_temp/
+*.user
+.vs/
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+.superpowers/
