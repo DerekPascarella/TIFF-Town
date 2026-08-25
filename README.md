@@ -80,10 +80,12 @@ Once an image is loaded, every change to the settings re-runs the conversion in 
 ### Wallpaper Tab
 TownsOS is a bit picky about desktop wallpaper. It displays exactly two combinations of resolution and color depth, and anything else renders as solid black, including wallpaper files written by Fujitsu's own tools.
 
-The Wallpaper tab exists so that mistake is impossible to make. It offers those two combinations and nothing else.
+The Wallpaper tab exists to make this as easy as possible for users. It offers those two combinations and nothing else.
 
-- **640 x 480, 16 colors** - Sharp and standard. The right choice for most wallpapers.
-- **320 x 240, 32,768 colors** - Full color, slightly softer. TownsOS pixel-doubles it to fill the screen.
+- **640x480, 16 colors** - Sharp and standard. The right choice for most wallpapers.
+- **320x240, 32,768 colors** - Full color, slightly softer. TownsOS pixel-doubles it to fill the screen.
+
+It's important to note, however, that TownsOS high-resolution mode supports wallpapers at 1024x768 in 16 colors and 512x384 in 32,768 colors. These high-resolution wallpapers can be created using the [Advanced Tab](#advanced-tab).
 
 Three fit choices control how the source image lands on the screen.
 
