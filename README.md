@@ -27,7 +27,7 @@ Output matches the byte layout written by Fujitsu's own TownsOS software, includ
 TIFF Town is currently at version [1.0.0](https://github.com/DerekPascarella/TIFF-Town/releases/tag/1.0.0).
 
 ## Changelog
-- **Version 1.0.0 (2026-08-24)**
+- **Version 1.0.0 (2026-08-25)**
   - Initial release.
 
 ## Supported Platforms
