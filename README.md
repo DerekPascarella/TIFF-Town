@@ -27,7 +27,7 @@ TIFF Town lets users load an image in a variety of formats, preview exactly what
 TIFF Town is currently at version [1.1.0](https://github.com/DerekPascarella/TIFF-Town/releases/tag/1.1.0).
 
 ## Changelog
-- **Version 1.1.0 (2026-08-XX)**
+- **Version 1.1.0 (2026-08-26)**
   - Cleaned up dialog box messages.
   - Added an FM Towns TIFF viewer tab.
   - Added an Install tab to easily inject TMENU.TIF into HDD image files.
