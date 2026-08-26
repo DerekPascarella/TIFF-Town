@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using MsBox.Avalonia;
+using MsBox.Avalonia.Dto;
 using SixLabors.ImageSharp.PixelFormats;
 using TiffTown.App.Views;
 using TiffTown.Core;
@@ -26,6 +28,11 @@ public partial class MainWindow : Window
     private ConversionResult? _result;
     private WriteableBitmap? _previewBitmap;
     private WriteableBitmap? _originalBitmap;
+    private TownsTiffImage? _viewerImage;
+    private WriteableBitmap? _viewerBitmap;
+    private TownsHdImage? _hdImage;
+    private WriteableBitmap? _installBitmap;
+    private byte[]? _installBytes;
     private CancellationTokenSource? _pending;
     private readonly DispatcherTimer _debounce = new() { Interval = TimeSpan.FromMilliseconds(150) };
 
@@ -41,6 +48,11 @@ public partial class MainWindow : Window
         WpLoadButton.Click += async (_, _) => await PickAndLoadAsync();
         SaveButton.Click += async (_, _) => await SaveAsync(wallpaper: false);
         WpSaveButton.Click += async (_, _) => await SaveAsync(wallpaper: true);
+        ViewerLoadButton.Click += async (_, _) => await ViewerPickAndLoadAsync();
+        ViewerSaveButton.Click += async (_, _) => await ViewerSaveAsync();
+        InstallLoadButton.Click += async (_, _) => await InstallPickAndLoadAsync();
+        InstallTifButton.Click += async (_, _) => await InstallPickTifAsync();
+        InstallButton.Click += async (_, _) => await InstallAsync();
         Preset640.Click += (_, _) =>
         {
             ResCustom.IsChecked = true;
@@ -78,7 +90,7 @@ public partial class MainWindow : Window
         ResampleBox.SelectionChanged += (_, _) => OnOptionChanged();
         FillPicker.ColorChanged += (_, _) => OnOptionChanged();
         WpBorderPicker.ColorChanged += (_, _) => OnOptionChanged();
-        MainTabs.SelectionChanged += (_, _) => OnOptionChanged();
+        MainTabs.SelectionChanged += (_, _) => OnTabChanged();
 
         Opened += (_, _) =>
         {
@@ -86,14 +98,42 @@ public partial class MainWindow : Window
                 _ = LoadFileAsync(Program.StartupFile);
         };
 
-        OnOptionChanged();
+        OnTabChanged();
     }
 
     private void VersionLine_PointerPressed(object? sender, PointerPressedEventArgs e) =>
         new AboutWindow().ShowDialog(this);
 
+    // The preview pane and compare button are shared: the Viewer and Install
+    // tabs show their own loaded TIFF, the other tabs the conversion output.
+    private void OnTabChanged()
+    {
+        if (MainTabs.SelectedIndex == 2)
+        {
+            PreviewImage.Source = _viewerBitmap;
+            PreviewHint.IsVisible = _viewerImage == null;
+            CompareButton.IsEnabled = false;
+        }
+        else if (MainTabs.SelectedIndex == 3)
+        {
+            PreviewImage.Source = _installBitmap;
+            PreviewHint.IsVisible = _installBitmap == null;
+            CompareButton.IsEnabled = false;
+        }
+        else
+        {
+            PreviewImage.Source = _previewBitmap ?? _originalBitmap;
+            PreviewHint.IsVisible = _source == null;
+            CompareButton.IsEnabled = _result != null;
+        }
+        OnOptionChanged();
+    }
+
     private void OnOptionChanged()
     {
+        if (MainTabs.SelectedIndex is 2 or 3)
+            return;
+
         ResFields.IsEnabled = ResCustom.IsChecked == true;
         ScalePanel.IsEnabled = ResCustom.IsChecked == true;
         FillRow.IsEnabled = ScaleFit.IsChecked == true || ScaleCenter.IsChecked == true;
@@ -212,9 +252,7 @@ public partial class MainWindow : Window
                         return;
                     InfoOutput.Text = "Conversion failed.";
                     RefreshWpInfo();
-                    _ = MessageBoxManager.GetMessageBoxStandard(
-                        "TIFF Town", $"Could not convert the image.\n\n{ex.Message}")
-                        .ShowWindowDialogAsync(this);
+                    _ = ShowError("Could not convert the image.", ex);
                 });
             }
         }, cts.Token);
@@ -251,6 +289,64 @@ public partial class MainWindow : Window
         return bmp;
     }
 
+    private static WriteableBitmap ToBitmap(SixLabors.ImageSharp.Image<Rgb24> image)
+    {
+        var bmp = new WriteableBitmap(
+            new PixelSize(image.Width, image.Height), new Vector(96, 96),
+            PixelFormat.Rgba8888, AlphaFormat.Opaque);
+        using var fb = bmp.Lock();
+        image.ProcessPixelRows(accessor =>
+        {
+            for (int y = 0; y < accessor.Height; y++)
+            {
+                var row = accessor.GetRowSpan(y);
+                unsafe
+                {
+                    byte* dest = (byte*)fb.Address + y * fb.RowBytes;
+                    for (int x = 0; x < row.Length; x++)
+                    {
+                        dest[x * 4] = row[x].R;
+                        dest[x * 4 + 1] = row[x].G;
+                        dest[x * 4 + 2] = row[x].B;
+                        dest[x * 4 + 3] = 255;
+                    }
+                }
+            }
+        });
+        return bmp;
+    }
+
+    private static bool IsTiffPath(string path) =>
+        path.EndsWith(".tif", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".tiff", StringComparison.OrdinalIgnoreCase);
+
+    private async Task ShowError(string headline, Exception ex, string? extraNote = null)
+    {
+        string body = extraNote == null
+            ? $"{headline}\n\nDetails: {ex.Message}"
+            : $"{headline}\n\n{extraNote}\n\nDetails: {ex.Message}";
+        await MessageBoxManager.GetMessageBoxStandard(new MessageBoxStandardParams
+        {
+            ContentTitle = "TIFF Town",
+            ContentMessage = body,
+            Icon = MsBox.Avalonia.Enums.Icon.None,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            MaxWidth = 440,
+        }).ShowWindowDialogAsync(this);
+    }
+
+    private async Task ShowInfo(string message)
+    {
+        await MessageBoxManager.GetMessageBoxStandard(new MessageBoxStandardParams
+        {
+            ContentTitle = "TIFF Town",
+            ContentMessage = message,
+            Icon = MsBox.Avalonia.Enums.Icon.None,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            MaxWidth = 440,
+        }).ShowWindowDialogAsync(this);
+    }
+
     private async Task PickAndLoadAsync()
     {
         try
@@ -273,9 +369,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            await MessageBoxManager.GetMessageBoxStandard(
-                "TIFF Town", $"Could not open the file picker.\n\n{ex.Message}")
-                .ShowWindowDialogAsync(this);
+            await ShowError("Could not open the file picker.", ex);
         }
     }
 
@@ -305,9 +399,10 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            await MessageBoxManager.GetMessageBoxStandard(
-                "TIFF Town", $"Could not read {System.IO.Path.GetFileName(path)}.\n\n{ex.Message}")
-                .ShowWindowDialogAsync(this);
+            string? note = IsTiffPath(path)
+                ? "If this is already an FM Towns TIFF, open it in the Viewer tab to inspect it instead."
+                : null;
+            await ShowError($"Could not read {System.IO.Path.GetFileName(path)} as a source image.", ex, note);
         }
     }
 
@@ -354,15 +449,257 @@ public partial class MainWindow : Window
                 return;
             await using var stream = await file.OpenWriteAsync();
             await stream.WriteAsync(_result.TiffBytes);
-            await MessageBoxManager.GetMessageBoxStandard(
-                "Information", $"Saved {file.TryGetLocalPath() ?? file.Name} ({_result.TiffBytes.Length:N0} bytes).")
-                .ShowWindowDialogAsync(this);
+            await ShowInfo($"Saved {file.TryGetLocalPath() ?? file.Name} ({_result.TiffBytes.Length:N0} bytes).");
         }
         catch (Exception ex)
         {
-            await MessageBoxManager.GetMessageBoxStandard(
-                "TIFF Town", $"Could not save the file.\n\n{ex.Message}")
-                .ShowWindowDialogAsync(this);
+            await ShowError("Could not save the file.", ex);
+        }
+    }
+
+    private async Task ViewerPickAndLoadAsync()
+    {
+        try
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Load Towns TIFF",
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("Towns TIFF") { Patterns = new[] { "*.tif", "*.tiff" } },
+                    FilePickerFileTypes.All,
+                },
+            });
+            if (files.Count == 1 && files[0].TryGetLocalPath() is string path)
+                await ViewerLoadFileAsync(path);
+        }
+        catch (Exception ex)
+        {
+            await ShowError("Could not open the file picker.", ex);
+        }
+    }
+
+    private async Task ViewerLoadFileAsync(string path)
+    {
+        try
+        {
+            var loaded = await Task.Run(() => TownsTiffImage.Load(path));
+            _viewerImage?.Dispose();
+            _viewerImage = loaded;
+
+            var oldBitmap = _viewerBitmap;
+            _viewerBitmap = ToBitmap(loaded.Pixels);
+            PreviewImage.Source = _viewerBitmap;
+            PreviewHint.IsVisible = false;
+            oldBitmap?.Dispose();
+
+            long fileSize = new System.IO.FileInfo(path).Length;
+            ViewerInfo.Text = $"{System.IO.Path.GetFileName(path)}, {loaded.Width}x{loaded.Height}\n"
+                + $"{ModeLabel(loaded.Mode)}, {(loaded.Lzw ? "LZW" : "Uncompressed")}\n"
+                + $"{fileSize:N0} bytes";
+            ViewerSaveButton.IsEnabled = true;
+        }
+        catch (Exception ex)
+        {
+            ViewerSaveButton.IsEnabled = false;
+            await ShowError($"Could not read {System.IO.Path.GetFileName(path)}.", ex);
+        }
+    }
+
+    private async Task ViewerSaveAsync()
+    {
+        if (_viewerImage == null)
+            return;
+        try
+        {
+            var startDir = System.IO.Path.GetDirectoryName(_viewerImage.Path) is string dir
+                ? await StorageProvider.TryGetFolderFromPathAsync(dir) : null;
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save as PNG",
+                SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(_viewerImage.Path) + ".png",
+                DefaultExtension = "png",
+                SuggestedStartLocation = startDir,
+                FileTypeChoices = new[]
+                {
+                    new FilePickerFileType("PNG") { Patterns = new[] { "*.png" } },
+                },
+            });
+            if (file == null)
+                return;
+            using var ms = new System.IO.MemoryStream();
+            await SixLabors.ImageSharp.ImageExtensions.SaveAsPngAsync(_viewerImage.Pixels, ms);
+            byte[] bytes = ms.ToArray();
+            await using var stream = await file.OpenWriteAsync();
+            await stream.WriteAsync(bytes);
+            await ShowInfo($"Saved {file.TryGetLocalPath() ?? file.Name} ({bytes.Length:N0} bytes).");
+        }
+        catch (Exception ex)
+        {
+            await ShowError("Could not save the file.", ex);
+        }
+    }
+
+    private void RefreshInstallState() =>
+        InstallButton.IsEnabled = _installBytes != null && _hdImage != null
+            && _hdImage.Partitions.Any(p => p.IsTownsSystem);
+
+    private async Task InstallPickAndLoadAsync()
+    {
+        try
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Load HDD Image",
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("HDD images")
+                    {
+                        Patterns = new[] { "*.hda", "*.hds", "*.hdd", "*.img", "*.hd", "*.hdn",
+                            "*.hdf", "*.h0", "*.h1", "*.h2", "*.h3", "*.h4", "*.h5",
+                            "*.nhd", "*.hdi", "*.vhd", "*.bin" },
+                    },
+                    FilePickerFileTypes.All,
+                },
+            });
+            if (files.Count == 1 && files[0].TryGetLocalPath() is string path)
+                await InstallLoadFileAsync(path);
+        }
+        catch (Exception ex)
+        {
+            await ShowError("Could not open the file picker.", ex);
+        }
+    }
+
+    private async Task InstallLoadFileAsync(string path)
+    {
+        try
+        {
+            var image = await Task.Run(() => TownsHdImage.Survey(path));
+            _hdImage = image;
+            string container = char.ToUpperInvariant(image.Container[0]) + image.Container[1..];
+            InstallImageInfo.Text = $"{System.IO.Path.GetFileName(path)}\n"
+                + $"{container}, {image.Partitions.Count} partition{(image.Partitions.Count == 1 ? "" : "s")}";
+            var targets = image.Partitions.Where(p => p.IsTownsSystem).ToList();
+            InstallTargetInfo.Text = targets.Count == 0
+                ? "No TownsOS system partition found."
+                : string.Join("\n", targets.Select(p =>
+                    $"Partition {p.Index + 1}: {(p.Boot ? "bootable " : "")}TownsOS system"
+                    + (p.HasWallpaper ? ", TMENU.TIF present" : "")));
+        }
+        catch (Exception ex)
+        {
+            _hdImage = null;
+            InstallImageInfo.Text = "N/A";
+            InstallTargetInfo.Text = "N/A";
+            await ShowError($"Could not read {System.IO.Path.GetFileName(path)} as a Towns HDD image.", ex);
+        }
+        RefreshInstallState();
+    }
+
+    private async Task InstallPickTifAsync()
+    {
+        try
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Load Wallpaper TIFF",
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("Towns TIFF") { Patterns = new[] { "*.tif", "*.tiff" } },
+                    FilePickerFileTypes.All,
+                },
+            });
+            if (files.Count == 1 && files[0].TryGetLocalPath() is string path)
+                await InstallLoadTifAsync(path);
+        }
+        catch (Exception ex)
+        {
+            await ShowError("Could not open the file picker.", ex);
+        }
+    }
+
+    private async Task InstallLoadTifAsync(string path)
+    {
+        try
+        {
+            var (loaded, bytes) = await Task.Run(() =>
+            {
+                var image = TownsTiffImage.Load(path);
+                bool legal = (image.Width == 640 && image.Height == 480 && image.Mode == TownsTiffMode.Colors16)
+                    || (image.Width == 320 && image.Height == 240 && image.Mode == TownsTiffMode.Colors32K);
+                if (!legal)
+                {
+                    string shape = $"{image.Width}x{image.Height} at {ModeLabel(image.Mode)}";
+                    image.Dispose();
+                    throw new System.IO.InvalidDataException("TownsOS only displays 640x480 16-color or "
+                        + $"320x240 32,768-color wallpapers; this file is {shape}.");
+                }
+                return (image, System.IO.File.ReadAllBytes(path));
+            });
+
+            var oldBitmap = _installBitmap;
+            _installBitmap = ToBitmap(loaded.Pixels);
+            _installBytes = bytes;
+            if (MainTabs.SelectedIndex == 3)
+            {
+                PreviewImage.Source = _installBitmap;
+                PreviewHint.IsVisible = false;
+            }
+            oldBitmap?.Dispose();
+            InstallTifInfo.Text = $"{System.IO.Path.GetFileName(path)}, {loaded.Width}x{loaded.Height}\n"
+                + $"{ModeLabel(loaded.Mode)}, {bytes.Length:N0} bytes";
+            loaded.Dispose();
+        }
+        catch (Exception ex)
+        {
+            await ShowError($"Could not load {System.IO.Path.GetFileName(path)} as a wallpaper TIFF.", ex,
+                "Use the Wallpaper tab to convert a regular image into one.");
+        }
+        RefreshInstallState();
+    }
+
+    private async Task InstallAsync()
+    {
+        if (_installBytes == null || _hdImage == null)
+            return;
+        var image = _hdImage;
+        var payload = _installBytes;
+        var targets = image.Partitions.Where(p => p.IsTownsSystem).ToList();
+        string fileName = System.IO.Path.GetFileName(image.Path);
+        string where = targets.Count == 1
+            ? $"partition {targets[0].Index + 1}"
+            : "partitions " + string.Join(", ", targets.Select(p => p.Index + 1));
+
+        var confirm = await MessageBoxManager.GetMessageBoxStandard(new MessageBoxStandardParams
+        {
+            ContentTitle = "TIFF Town",
+            ContentMessage = $"Install the wallpaper into {fileName}?\n\n"
+                + $"TMENU.TIF will be written to the root of {where}, "
+                + "replacing any TMENU.TIF already there.",
+            ButtonDefinitions = MsBox.Avalonia.Enums.ButtonEnum.YesNo,
+            Icon = MsBox.Avalonia.Enums.Icon.None,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            MaxWidth = 440,
+        }).ShowWindowDialogAsync(this);
+        if (confirm != MsBox.Avalonia.Enums.ButtonResult.Yes)
+            return;
+
+        InstallButton.IsEnabled = false;
+        try
+        {
+            var installed = await Task.Run(() => image.InstallWallpaper(payload));
+            string list = installed.Count == 1
+                ? $"partition {installed[0].Index + 1}"
+                : "partitions " + string.Join(" and ", installed.Select(p => p.Index + 1));
+            await ShowInfo($"Installed TMENU.TIF into {list} of {fileName} "
+                + $"({payload.Length:N0} bytes, verified).");
+            await InstallLoadFileAsync(image.Path);
+        }
+        catch (Exception ex)
+        {
+            await ShowError("Could not install the wallpaper.", ex);
+            RefreshInstallState();
         }
     }
 }

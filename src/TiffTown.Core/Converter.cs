@@ -69,7 +69,7 @@ public static class Converter
         var exact = TryExactPalette(image, maxColors, indices);
         if (exact != null)
         {
-            palette = exact;
+            palette = maxColors == 16 ? SnapExactTo16(exact, indices) : exact;
         }
         else
         {
@@ -85,6 +85,9 @@ public static class Converter
             palette = frame.Palette.ToArray();
             for (int y = 0; y < image.Height; y++)
                 frame.DangerousGetRowSpan(y).CopyTo(indices.AsSpan(y * image.Width, image.Width));
+
+            if (maxColors == 16)
+                palette = SnapQuantizedTo16(image, palette, indices, options);
         }
 
         byte[] tiff = maxColors == 16
@@ -103,8 +106,8 @@ public static class Converter
         return new ConversionResult(mode, image.Width, image.Height, tiff, preview);
     }
 
-    // Builds a first-appearance palette when the image already fits the slot
-    // count, so exact sources survive conversion untouched.
+    // Builds a palette in first-appearance order, or returns null if the image
+    // has more colors than slots. Images that fit are never quantized.
     private static Rgb24[]? TryExactPalette(Image<Rgb24> image, int maxColors, byte[] indices)
     {
         var lookup = new Dictionary<Rgb24, byte>();
@@ -126,6 +129,70 @@ public static class Converter
         foreach (var (color, idx) in lookup)
             palette[idx] = color;
         return palette;
+    }
+
+    // A 16-color Towns palette has four bits per component. Snapping to that
+    // grid gives the color the machine will actually display.
+    private static Rgb24 Snap16(Rgb24 c) =>
+        new(Expand4(c.R >> 4), Expand4(c.G >> 4), Expand4(c.B >> 4));
+
+    // Snaps an exact palette to the 4-bit grid. Entries that collapse onto the
+    // same color are merged and their pixels remapped.
+    private static Rgb24[] SnapExactTo16(Rgb24[] palette, byte[] indices)
+    {
+        var kept = new List<Rgb24>();
+        var moved = new byte[palette.Length];
+        for (int i = 0; i < palette.Length; i++)
+        {
+            var snapped = Snap16(palette[i]);
+            int at = kept.IndexOf(snapped);
+            if (at < 0)
+            {
+                at = kept.Count;
+                kept.Add(snapped);
+            }
+            moved[i] = (byte)at;
+        }
+
+        for (int i = 0; i < indices.Length; i++)
+            indices[i] = moved[indices[i]];
+        return kept.ToArray();
+    }
+
+    // Requantizes the image against the snapped palette. Dithering against
+    // colors the machine cannot show leaves gradients banded once the low
+    // nibble is dropped.
+    private static Rgb24[] SnapQuantizedTo16(
+        Image<Rgb24> image, Rgb24[] palette, byte[] indices, ConversionOptions options)
+    {
+        var kept = new List<Rgb24>();
+        bool onGrid = true;
+        foreach (var color in palette)
+        {
+            var snapped = Snap16(color);
+            onGrid &= snapped.Equals(color);
+            if (!kept.Contains(snapped))
+                kept.Add(snapped);
+        }
+        if (onGrid)
+            return palette;
+
+        var colors = new Color[kept.Count];
+        for (int i = 0; i < kept.Count; i++)
+            colors[i] = Color.FromPixel(kept[i]);
+
+        var quantizer = new PaletteQuantizer(colors, new QuantizerOptions
+        {
+            MaxColors = kept.Count,
+            Dither = options.Dither ? KnownDitherings.FloydSteinberg : null,
+        });
+        using IQuantizer<Rgb24> q = quantizer.CreatePixelSpecificQuantizer<Rgb24>(image.Configuration);
+        using IndexedImageFrame<Rgb24> frame =
+            q.BuildPaletteAndQuantizeFrame(image.Frames.RootFrame, image.Bounds);
+
+        for (int y = 0; y < image.Height; y++)
+            frame.DangerousGetRowSpan(y).CopyTo(indices.AsSpan(y * image.Width, image.Width));
+        return frame.Palette.ToArray();
     }
 
     private static ConversionResult To32K(Image<Rgb24> image, ConversionOptions options)
@@ -182,7 +249,9 @@ public static class Converter
         next[x + 2] += error * 1f / 16f;
     }
 
-    private static byte Expand5(int v) => (byte)(v << 3 | v >> 2);
+    internal static byte Expand4(int v) => (byte)(v << 4 | v);
+
+    internal static byte Expand5(int v) => (byte)(v << 3 | v >> 2);
 
     private static ConversionResult ToTrueColor(Image<Rgb24> image, ConversionOptions options)
     {

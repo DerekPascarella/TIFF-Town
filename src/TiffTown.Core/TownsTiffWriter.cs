@@ -8,7 +8,6 @@ namespace TiffTown.Core;
 // Emits the fixed TIFF layout written by Fujitsu's TownsOS imaging software:
 // IFD at 8, auxiliary values in the 0x100-0x1FF window, pixel data at 0x200,
 // except 256-color where the palette sits at 0x200 and data at 0x800.
-// See docs/DESIGN.md section 1 for the reverse-engineered template.
 internal static class TownsTiffWriter
 {
     private const ushort TypeShort = 3;
@@ -35,7 +34,9 @@ internal static class TownsTiffWriter
         var paletteArray = palette.ToArray();
         return Assemble(width, height, dataOffset: 0x200, strip, lzw, header =>
         {
-            WriteColorMap(header, 0x100, paletteArray, 16);
+            // TownsOS files store 16-color components as a multiple of 0x10, so
+            // mask off the low nibble. The machine reads the high nibble alone.
+            WriteColorMap(header, 0x100, paletteArray, 16, keep: 0xF0);
         }, entries: (comp, len) => new List<Entry>
         {
             new(254, TypeLong, 1, 0),
@@ -186,13 +187,14 @@ internal static class TownsTiffWriter
         return file;
     }
 
-    private static void WriteColorMap(byte[] header, int offset, ReadOnlySpan<Rgb24> palette, int slots)
+    private static void WriteColorMap(
+        byte[] header, int offset, ReadOnlySpan<Rgb24> palette, int slots, byte keep = 0xFF)
     {
         for (int i = 0; i < palette.Length; i++)
         {
-            PutU16(header, offset + i * 2, (ushort)(palette[i].R * 257));
-            PutU16(header, offset + (slots + i) * 2, (ushort)(palette[i].G * 257));
-            PutU16(header, offset + (slots * 2 + i) * 2, (ushort)(palette[i].B * 257));
+            PutU16(header, offset + i * 2, (ushort)((palette[i].R & keep) * 257));
+            PutU16(header, offset + (slots + i) * 2, (ushort)((palette[i].G & keep) * 257));
+            PutU16(header, offset + (slots * 2 + i) * 2, (ushort)((palette[i].B & keep) * 257));
         }
     }
 

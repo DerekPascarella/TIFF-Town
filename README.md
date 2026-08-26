@@ -1,9 +1,7 @@
 # TIFF Town
-<img align="right" src="https://github.com/DerekPascarella/TIFF-Town/blob/main/screenshots/screenshot.png?raw=true" width="265">TIFF Town is a cross-platform image converter that turns modern image formats into TIFF files readable by TownsOS on the FM Towns and FM Towns Marty.
+<img align="right" src="https://github.com/DerekPascarella/TIFF-Town/blob/main/screenshots/screenshot.png?raw=true" width="200">TIFF Town is a cross-platform image converter that turns modern image formats into TIFF files readable by TownsOS on the FM Towns and FM Towns Marty.
 
-Load an image, see exactly what the Towns will display, adjust the settings, and save. That's it!
-
-Output matches the byte layout written by Fujitsu's own TownsOS software, including the Towns-specific 32,768-color format that no general-purpose TIFF writer produces.
+TIFF Town lets users load an image in a variety of formats, preview exactly what the Towns will display, adjust settings, then export to TIFF.
 
 ## Table of Contents
 
@@ -16,6 +14,8 @@ Output matches the byte layout written by Fujitsu's own TownsOS software, includ
   - [Loading an Image](#loading-an-image)
   - [Wallpaper Tab](#wallpaper-tab)
   - [Advanced Tab](#advanced-tab)
+  - [Viewer Tab](#viewer-tab)
+  - [Install Tab](#install-tab)
   - [Comparing Against the Original](#comparing-against-the-original)
   - [Saving](#saving)
 - [Installing a Wallpaper on the Towns](#installing-a-wallpaper-on-the-towns)
@@ -24,9 +24,14 @@ Output matches the byte layout written by Fujitsu's own TownsOS software, includ
   - [Third-Party Components](#third-party-components)
 
 ## Current Version
-TIFF Town is currently at version [1.0.0](https://github.com/DerekPascarella/TIFF-Town/releases/tag/1.0.0).
+TIFF Town is currently at version [1.1.0](https://github.com/DerekPascarella/TIFF-Town/releases/tag/1.1.0).
 
 ## Changelog
+- **Version 1.1.0 (2026-08-XX)**
+  - Cleaned up dialog box messages.
+  - Added an FM Towns TIFF viewer tab.
+  - Added an Install tab to easily inject TMENU.TIF into HDD image files.
+  - Fixed 16-color output, the palette is now snapped to the FM Towns' 4-bit-per-channel hardware palette before dithering, so smooth gradients no longer come out banded or color-cast.
 - **Version 1.0.0 (2026-08-25)**
   - Initial release.
 
@@ -48,7 +53,7 @@ TIFF Town is currently at version [1.0.0](https://github.com/DerekPascarella/TIF
 | JPEG | `.jpg`, `.jpeg` | |
 | GIF | `.gif` | First frame only |
 | BMP | `.bmp` | |
-| TIFF | `.tif`, `.tiff` | Standard TIFF, not Towns TIFF |
+| TIFF | `.tif`, `.tiff` | Standard TIFF, not Towns TIFF. Already have a Towns TIFF? Use the [Viewer tab](#viewer-tab) instead |
 | WebP | `.webp` | |
 | TGA | `.tga` | |
 | QOI | `.qoi` | |
@@ -73,7 +78,7 @@ Files are written uncompressed by default. Standard TIFF LZW is available as an 
 ## Basic Usage
 
 ### Loading an Image
-Click **Load Image...** on either tab, or launch the application with an image file as its argument.
+Click **Load Image...** on the Wallpaper or Advanced tab, or launch the application with an image file as its argument.
 
 Once an image is loaded, every change to the settings re-runs the conversion in the background and updates the preview. The **Result** block shows the source dimensions and unique color count, along with the mode the converter settled on and the real encoded size of the file that would be written.
 
@@ -93,7 +98,7 @@ Three fit choices control how the source image lands on the screen.
 - **Fit whole image** - Keeps the entire picture, filling the leftover space with a border color.
 - **Stretch** - Matches the exact shape, squashing or stretching as needed.
 
-Dithering, resampling, and compression aren't exposed here, because a wallpaper conversion has one correct answer for each. The **Save TMENU.TIF...** button writes the file under the name TownsOS looks for.
+Dithering, resampling, and compression aren't exposed here, because a wallpaper conversion has one correct answer for each. The **Save TMENU.TIF...** button writes the file under the name TownsOS looks for. To write it directly into an HDD image instead, see the [Install tab](#install-tab).
 
 ### Advanced Tab
 The Advanced tab is the full converter, for images that aren't wallpaper.
@@ -115,6 +120,22 @@ The fill color is painted into the image before conversion, so in the palette mo
 
 **LZW compression** is off by default. See [Towns TIFF Variants](#towns-tiff-variants) for why.
 
+### Viewer Tab
+The Viewer tab reads a Towns TIFF back instead of converting one. Click **Load Towns TIFF...** and pick a file; TIFF Town decodes it directly rather than through the same path used for source images, so it displays correctly even though a generic TIFF reader can't make sense of most of these files (see [Towns TIFF Variants](#towns-tiff-variants)).
+
+The **Result** block reports the file name, dimensions, color depth, and compression. **Save as PNG...** exports the decoded image as a normal PNG once a file has loaded.
+
+There's nothing to convert here, so the depth, resolution, and scaling controls from the other tabs don't apply, and hold-to-compare has nothing to compare against, so it stays disabled on this tab.
+
+### Install Tab
+The Install tab writes a wallpaper straight into an FM Towns hard-disk image, the kind used by SCSI drive emulators like BlueSCSI, ZuluSCSI, ArdSCSino, and Henkan Bancho, as well as by software emulators like Tsugaru and Unz. There's no need to boot an emulator or mount anything just to copy one file.
+
+Click **Load HDD Image...** and pick the image. TIFF Town finds the Towns partition table by reading the file itself, so the extension doesn't matter (`.hda`, `.hds`, `.hdd`, `.h0`, and so on are all the same raw format). Fixed VHD images and the T98-Next NHD and Anex86 HDI container formats are also recognized. The **HDD image** and **Target** blocks report what was found, including which partition holds a bootable TownsOS system.
+
+Click **Load Wallpaper TIFF...** and pick the TIFF to install, such as one saved from the [Wallpaper tab](#wallpaper-tab). The file is checked against the two combinations TownsOS actually displays as wallpaper (640x480 in 16 colors, 320x240 in 32,768 colors) and refused otherwise, since anything else would come up as a black desktop. The preview shows the loaded file.
+
+**Install Wallpaper...** writes the file into the root of the bootable TownsOS partition as `TMENU.TIF`, replacing any `TMENU.TIF` already there. Nothing else on the image is touched, and the written copy is read back and verified byte-for-byte. A confirmation dialog names the image and partition before anything is written.
+
 ### Comparing Against the Original
 Press and hold **Show original (hold)** beneath the preview to swap in the source image, and release to go back to the converted result. This is the quickest way to judge dithering and palette reduction, especially at 16 colors.
 
@@ -124,7 +145,7 @@ Clicking **Save As...** on the Advanced tab opens a save dialog prefilled with a
 A confirmation dialog reports the full path and byte count once the file is written.
 
 ## Installing a Wallpaper on the Towns
-<img align="right" src="https://github.com/DerekPascarella/TIFF-Town/blob/main/screenshots/menu.png?raw=true" width="150">Copy `TMENU.TIF` to the root of the bootable TownsOS partition. The file name has to be exactly that, and it has to sit in the root, not in a subdirectory.
+<img align="right" src="https://github.com/DerekPascarella/TIFF-Town/blob/main/screenshots/menu.png?raw=true" width="150">For an HDD image, the [Install tab](#install-tab) does all of this automatically. On real hardware, or with a disk mounted some other way, copy `TMENU.TIF` to the root of the bootable TownsOS partition. The file name has to be exactly that, and it has to sit in the root, not in a subdirectory.
 
 Then enable the background from within TownsMENU by opening the settings menu and checking the background display option, as shown to the right.
 

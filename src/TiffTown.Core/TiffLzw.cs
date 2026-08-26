@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -60,8 +61,7 @@ internal static class TiffLzw
             table[(prefix, b)] = nextCode++;
 
             // Early change: widen as soon as the table reaches 2^width entries,
-            // so a decoder lagging one code behind never needs a wider code
-            // than it has already switched to.
+            // one code sooner than plain LZW.
             if (nextCode == 512 || nextCode == 1024 || nextCode == 2048)
                 codeWidth++;
 
@@ -82,5 +82,82 @@ internal static class TiffLzw
             output.WriteByte((byte)(bitBuffer << (8 - bitCount)));
 
         return output.ToArray();
+    }
+
+    public static byte[] Decode(byte[] data)
+    {
+        var output = new MemoryStream();
+        int bitPos = 0;
+        int totalBits = data.Length * 8;
+        int codeWidth = 9;
+        List<byte[]> table = NewTable();
+        byte[]? prev = null;
+
+        int ReadCode()
+        {
+            int code = 0;
+            for (int i = 0; i < codeWidth; i++)
+            {
+                int bit = (data[bitPos >> 3] >> (7 - (bitPos & 7))) & 1;
+                code = (code << 1) | bit;
+                bitPos++;
+            }
+            return code;
+        }
+
+        while (bitPos + codeWidth <= totalBits)
+        {
+            int code = ReadCode();
+            if (code == EoiCode)
+                break;
+            if (code == ClearCode)
+            {
+                table = NewTable();
+                codeWidth = 9;
+                prev = null;
+                continue;
+            }
+
+            byte[] entry;
+            if (code < table.Count)
+                entry = table[code];
+            else if (code == table.Count && prev != null)
+                entry = Append(prev, prev[0]);
+            else
+                throw new InvalidDataException("Corrupt LZW stream.");
+
+            output.Write(entry, 0, entry.Length);
+
+            if (prev != null)
+            {
+                table.Add(Append(prev, entry[0]));
+
+                // The decoder's table trails the encoder's by one entry, so the
+                // early width change lands at 511/1023/2047 here.
+                if (table.Count == 511 || table.Count == 1023 || table.Count == 2047)
+                    codeWidth++;
+            }
+            prev = entry;
+        }
+
+        return output.ToArray();
+    }
+
+    private static List<byte[]> NewTable()
+    {
+        var table = new List<byte[]>(4096);
+        for (int i = 0; i < 256; i++)
+            table.Add(new[] { (byte)i });
+        table.Add(Array.Empty<byte>()); // 256: ClearCode, never indexed.
+        table.Add(Array.Empty<byte>()); // 257: EoiCode, never indexed.
+        return table;
+    }
+
+    private static byte[] Append(byte[] seq, byte b)
+    {
+        var result = new byte[seq.Length + 1];
+        seq.CopyTo(result, 0);
+        result[seq.Length] = b;
+        return result;
     }
 }

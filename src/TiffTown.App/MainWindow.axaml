@@ -18,7 +18,7 @@
         <Style Selector="TabItem">
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="MinHeight" Value="34"/>
-            <Setter Property="Padding" Value="10,2"/>
+            <Setter Property="Padding" Value="7,2"/>
         </Style>
     </Window.Styles>
 
@@ -166,6 +166,48 @@
                                     Content="Save As..."/>
                         </StackPanel>
                     </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Viewer" x:Name="ViewerTab">
+                    <StackPanel Margin="0,8,8,12">
+                        <Button x:Name="ViewerLoadButton" HorizontalAlignment="Stretch" Content="Load Towns TIFF..."/>
+
+                        <TextBlock Classes="section" Text="Result"/>
+                        <TextBlock x:Name="ViewerInfo" FontSize="12" TextWrapping="Wrap" Text="N/A"/>
+
+                        <Button x:Name="ViewerSaveButton" Margin="0,12,0,0"
+                                HorizontalAlignment="Stretch" IsEnabled="False"
+                                Content="Save as PNG..."/>
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header="Install" x:Name="InstallTab">
+                    <StackPanel Margin="0,8,8,12">
+                        <Button x:Name="InstallLoadButton" HorizontalAlignment="Stretch"
+                                Content="Load HDD Image..."/>
+
+                        <TextBlock Classes="section" Text="HDD image"/>
+                        <TextBlock x:Name="InstallImageInfo" FontSize="12" TextWrapping="Wrap" Text="N/A"/>
+
+                        <TextBlock Classes="section" Text="Target"/>
+                        <TextBlock x:Name="InstallTargetInfo" FontSize="12" TextWrapping="Wrap" Text="N/A"/>
+
+                        <Button x:Name="InstallTifButton" Margin="0,12,0,0"
+                                HorizontalAlignment="Stretch" Content="Load Wallpaper TIFF..."/>
+
+                        <TextBlock Classes="section" Text="Wallpaper"/>
+                        <TextBlock x:Name="InstallTifInfo" FontSize="12" TextWrapping="Wrap" Text="N/A"/>
+
+                        <TextBlock Classes="section" Text="Install"/>
+                        <TextBlock Classes="caption"
+                                   Text="Writes the loaded TIFF into the root of the bootable TownsOS partition as TMENU.TIF. Any TMENU.TIF already there is overwritten. Nothing else on the image is changed."/>
+
+                        <TextBlock Classes="section" Text="After booting"/>
+                        <TextBlock Classes="caption"
+                                   Text="If no wallpaper appears, open the 設定 (Settings) menu on the Towns MENU bar and turn on 背景表示 (background display). TownsOS only draws the wallpaper while it is on."/>
+
+                        <Button x:Name="InstallButton" Margin="0,12,0,0"
+                                HorizontalAlignment="Stretch" IsEnabled="False"
+                                Content="Install Wallpaper..."/>
+                    </StackPanel>
                 </TabItem>
             </TabControl>
         </Grid>
